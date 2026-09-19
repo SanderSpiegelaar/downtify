@@ -1,8 +1,8 @@
-"""Native macOS launcher for the existing web app."""
+"""Native macOS and Windows launcher for the existing web app."""
 
 from __future__ import annotations
 
-import fcntl
+import errno
 import html
 import json
 import multiprocessing
@@ -22,6 +22,24 @@ from webview.menu import Menu, MenuAction
 ROOT = Path(__file__).resolve().parent
 
 
+def support_directory() -> Path:
+    if sys.platform == 'win32':
+        return Path(os.environ['LOCALAPPDATA']) / 'Downtify'
+    return Path.home() / 'Library/Application Support/Downtify'
+
+
+def lock_instance(lock) -> None:
+    if sys.platform == 'win32':
+        import msvcrt  # noqa: PLC0415
+
+        lock.seek(0)
+        msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+    else:
+        import fcntl  # noqa: PLC0415
+
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
 def configure_environment(support: Path) -> dict[str, str]:
     os.environ['DOWNTIFY_COOKIES_FROM_BROWSER'] = 'chrome'
     config = support / 'desktop.json'
@@ -36,13 +54,11 @@ def configure_environment(support: Path) -> dict[str, str]:
         path.mkdir(parents=True, exist_ok=True)
         locations[key] = os.environ[key] = str(path)
     os.environ['WEB_GUI_LOCATION'] = str(ROOT / 'frontend/dist')
-    # Finder does not inherit the shell PATH. Bundled tools take precedence.
-    os.environ['PATH'] = os.pathsep.join([
-        str(ROOT / 'bin'),
-        '/opt/homebrew/bin',
-        '/usr/local/bin',
-        os.environ.get('PATH', '/usr/bin:/bin'),
-    ])
+    # Native launchers do not inherit the shell PATH. Prefer bundled tools.
+    paths = [str(ROOT / 'bin'), os.environ.get('PATH', '')]
+    if sys.platform == 'darwin':
+        paths[1:1] = ['/opt/homebrew/bin', '/usr/local/bin']
+    os.environ['PATH'] = os.pathsep.join(paths)
     return locations
 
 
@@ -170,6 +186,7 @@ def run_window(support: Path) -> None:
                 )
             ]
             webview.start(
+                gui='edgechromium' if sys.platform == 'win32' else None,
                 private_mode=False,
                 storage_path=str(support / 'webview'),
                 menu=menu,
@@ -190,13 +207,15 @@ def run_window(support: Path) -> None:
 
 
 def main() -> None:
-    support = Path.home() / 'Library/Application Support/Downtify'
+    support = support_directory()
     support.mkdir(parents=True, exist_ok=True)
-    with (support / 'desktop.lock').open('w') as lock:
+    with (support / 'desktop.lock').open('a+b') as lock:
         try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            return  # An instance already owns the desktop configuration.
+            lock_instance(lock)
+        except OSError as exc:
+            if exc.errno in {errno.EACCES, errno.EAGAIN}:
+                return  # An instance already owns the desktop configuration.
+            raise
         run_window(support)
 
 

@@ -113,6 +113,37 @@ Only one desktop instance runs at a time. Quit interrupts active downloads.
 For source development, build the frontend once, then run `make desktop`.
 Run desktop checks with `uv run --extra desktop pytest tests/test_desktop.py`.
 
+### Windows desktop app
+
+Without a Windows machine, use **Actions → Windows desktop → Run workflow**
+on a GitHub repository containing this workflow. GitHub builds on a Windows
+runner and provides the `Downtify-windows-x64` download under the run's
+artifacts. The workflow is manual and does not publish a release.
+
+Build on Windows with Python 3.13, uv, Node.js, FFmpeg (`ffmpeg.exe` and
+`ffprobe.exe`) and Deno installed and available on `PATH`:
+
+```powershell
+uv run --frozen --no-dev --extra desktop --python 3.13 python scripts/build_windows.py
+```
+
+The build creates `dist/Downtify-windows.zip`. Extract the whole archive and
+run `Downtify/Downtify.exe`; keep its `_internal` folder alongside the executable.
+Python and the media tools are bundled. The target PC needs the
+[Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+This is an unsigned portable application, not an installer.
+
+Desktop settings, logs and the default database folder live under
+`%LOCALAPPDATA%\Downtify`; music defaults to `Music\Downtify` in your user folder.
+The native **Library locations** menu changes music/data folders on restart.
+The Windows launcher also always sets `DOWNTIFY_COOKIES_FROM_BROWSER=chrome`.
+Chrome cookie extraction still depends on the local Chrome profile and its
+OS protection; packaging alone does not verify cookie access.
+
+PyInstaller builds must run on the target operating system; the macOS build
+cannot produce a Windows executable. Run focused desktop tests on Windows with
+`uv run --no-dev --extra desktop --with pytest --python 3.13 pytest tests/test_desktop.py`.
+
 ### Docker Compose
 
 ```yaml

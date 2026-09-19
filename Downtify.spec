@@ -1,5 +1,6 @@
-# Build on macOS with make desktop-build.
+# macOS: make desktop-build. Windows: scripts/build_windows.py.
 import shutil
+import sys
 import tomllib
 from pathlib import Path
 
@@ -11,7 +12,7 @@ binaries = []
 for tool in ('ffmpeg', 'ffprobe', 'deno'):
     source = shutil.which(tool)
     if source is None:
-        raise SystemExit(f'Missing {tool}; install with brew install ffmpeg deno')
+        raise SystemExit(f'Missing {tool}; install FFmpeg and Deno on PATH')
     binaries.append((source, 'bin'))
 
 if not (root / 'frontend/dist/index.html').is_file():
@@ -30,15 +31,17 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, [], exclude_binaries=True,
     name='Downtify', console=False,
+    icon=str(root / 'frontend/public/favicon.ico') if sys.platform == 'win32' else None,
 )
 coll = COLLECT(exe, a.binaries, a.datas, name='Downtify')
-app = BUNDLE(
-    coll, name='Downtify.app',
-    icon=str(root / 'build/Downtify.icns'),
-    bundle_identifier='io.downtify.desktop', version=version,
-    info_plist={
-        'NSHighResolutionCapable': True,
-        'NSAppTransportSecurity': {'NSAllowsLocalNetworking': True},
-        'NSMusicFolderUsageDescription': 'Downtify saves your music library here.',
-    },
-)
+if sys.platform == 'darwin':
+    app = BUNDLE(
+        coll, name='Downtify.app',
+        icon=str(root / 'build/Downtify.icns'),
+        bundle_identifier='io.downtify.desktop', version=version,
+        info_plist={
+            'NSHighResolutionCapable': True,
+            'NSAppTransportSecurity': {'NSAllowsLocalNetworking': True},
+            'NSMusicFolderUsageDescription': 'Downtify saves your music library here.',
+        },
+    )

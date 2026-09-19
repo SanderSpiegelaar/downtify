@@ -1,0 +1,55 @@
+name: Windows desktop
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '26'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install media tools
+        shell: pwsh
+        run: |
+          choco install ffmpeg deno --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # Bundle the real executables, not Chocolatey's launcher shims.
+          foreach ($tool in @('ffmpeg', 'ffprobe', 'deno')) {
+            $package = if ($tool -eq 'deno') { 'deno' } else { 'ffmpeg' }
+            $binary = Get-ChildItem "$env:ChocolateyInstall/lib/$package" -Recurse -Filter "$tool.exe" |
+              Select-Object -First 1
+            if (-not $binary) { throw "Cannot locate the installed $tool.exe" }
+            $binary.DirectoryName | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          }
+      - name: Test desktop lifecycle and configuration
+        run: uv run --frozen --no-dev --extra desktop --with pytest pytest tests/test_desktop.py -q
+      - name: Build portable application
+        run: uv run --frozen --no-dev --extra desktop python scripts/build_windows.py
+      - name: Check bundled media tools
+        shell: pwsh
+        run: |
+          & dist/Downtify/_internal/bin/ffmpeg.exe -version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & dist/Downtify/_internal/bin/ffprobe.exe -version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & dist/Downtify/_internal/bin/deno.exe eval 'console.log(1 + 1)'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload Windows application
+        uses: actions/upload-artifact@v7
+        with:
+          name: Downtify-windows-x64
+          path: dist/Downtify-windows.zip
+          if-no-files-found: error
+          retention-days: 14

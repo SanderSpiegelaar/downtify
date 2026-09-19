@@ -12,9 +12,26 @@ pytest.importorskip('webview')
 import desktop  # noqa: E402
 
 
+def test_windows_support_directory_uses_local_app_data(tmp_path, monkeypatch):
+    monkeypatch.setattr(desktop.sys, 'platform', 'win32')
+    monkeypatch.setenv('LOCALAPPDATA', str(tmp_path))
+    assert desktop.support_directory() == tmp_path / 'Downtify'
+
+
+def test_instance_lock_prevents_overlap_and_releases(tmp_path):
+    path = tmp_path / 'desktop.lock'
+    with path.open('a+b') as first, path.open('a+b') as second:
+        desktop.lock_instance(first)
+        with pytest.raises(OSError, match='.+'):
+            desktop.lock_instance(second)
+    with path.open('a+b') as reopened:
+        desktop.lock_instance(reopened)
+
+
 @pytest.fixture
 def support(tmp_path, monkeypatch):
     monkeypatch.setenv('HOME', str(tmp_path))
+    monkeypatch.setenv('USERPROFILE', str(tmp_path))
     for key in (
         'DATABASE_DIR',
         'DOWNLOAD_DIR',
