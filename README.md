@@ -75,6 +75,42 @@ Open [http://localhost:8000](http://localhost:8000), paste a link and start the 
 
 `/downloads` holds your audio files and `/data` holds Downtify's database and settings. Keep both persistent, or settings, likes and playlist tracking are lost when the container is recreated.
 
+### macOS desktop app
+
+Build a native macOS app with pywebview (WKWebView) and PyInstaller:
+
+```bash
+brew install uv node ffmpeg deno
+make desktop-build
+open dist/Downtify.app
+```
+
+The build includes the Vue frontend, Python backend, FFmpeg/FFprobe and Deno.
+Copy `dist/Downtify.app` to Applications; Python, Node and Homebrew are not
+needed to run the bundle. Build on the target Mac architecture. The local
+build is ad-hoc signed, not Developer ID signed or notarized for distribution.
+Homebrew tools may require the same or a newer macOS release than the build
+machine; this build does not promise compatibility with older macOS versions.
+
+Use the native **Library locations → Choose music folder… / Choose data
+folder…** menu to select locations. Choices are saved and take effect after
+restarting. Existing files are not moved: quit before moving an existing
+library or databases to the selected folder.
+
+Defaults:
+
+- Music: `~/Music/Downtify`
+- Databases/settings: `~/Library/Application Support/Downtify/data`
+- Desktop preferences, browser storage and `desktop.log`:
+  `~/Library/Application Support/Downtify`
+
+`DOWNLOAD_DIR` and `DATABASE_DIR` environment variables override saved folder
+choices when launching from a terminal. The backend listens only on
+`127.0.0.1`, on an available port, and stops when the desktop window closes.
+Only one desktop instance runs at a time. Quit interrupts active downloads.
+For source development, build the frontend once, then run `make desktop`.
+Run desktop checks with `uv run --extra desktop pytest tests/test_desktop.py`.
+
 ### Docker Compose
 
 ```yaml

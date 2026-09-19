@@ -21,6 +21,19 @@ down:
 run:
 	uv run python main.py web
 
+desktop:
+	uv run --extra desktop python desktop.py
+
+desktop-build:
+	@test "$$(uname -s)" = Darwin || (echo 'Build the macOS app on macOS'; exit 1)
+	npm ci --prefix frontend
+	npm run build --prefix frontend
+	mkdir -p build/Downtify.iconset
+	sips -z 512 512 frontend/public/1024.png --out build/Downtify.iconset/icon_512x512.png
+	cp frontend/public/1024.png build/Downtify.iconset/icon_512x512@2x.png
+	iconutil -c icns build/Downtify.iconset -o build/Downtify.icns
+	uv run --frozen --extra desktop pyinstaller --noconfirm Downtify.spec
+
 format:
 	uv run ruff format .; ruff check . --fix
 	prettier --write frontend/src/. docs/.vitepress/.
@@ -64,4 +77,4 @@ rm:
 %:
 	@:
 
-.PHONY: all build clean up down run format lint export changelog version doc doc-build rm
+.PHONY: all build clean up down run desktop desktop-build format lint export changelog version doc doc-build rm
