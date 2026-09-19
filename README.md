@@ -107,6 +107,8 @@ Defaults:
 `DOWNLOAD_DIR` and `DATABASE_DIR` environment variables override saved folder
 choices when launching from a terminal. The backend listens only on
 `127.0.0.1`, on an available port, and stops when the desktop window closes.
+The desktop launcher always sets `DOWNTIFY_COOKIES_FROM_BROWSER=chrome`
+so downloads use the local Chrome profile's cookies, including Finder launches.
 Only one desktop instance runs at a time. Quit interrupts active downloads.
 For source development, build the frontend once, then run `make desktop`.
 Run desktop checks with `uv run --extra desktop pytest tests/test_desktop.py`.

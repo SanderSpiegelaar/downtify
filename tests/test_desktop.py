@@ -15,7 +15,12 @@ import desktop  # noqa: E402
 @pytest.fixture
 def support(tmp_path, monkeypatch):
     monkeypatch.setenv('HOME', str(tmp_path))
-    for key in ('DATABASE_DIR', 'DOWNLOAD_DIR', 'WEB_GUI_LOCATION'):
+    for key in (
+        'DATABASE_DIR',
+        'DOWNLOAD_DIR',
+        'WEB_GUI_LOCATION',
+        'DOWNTIFY_COOKIES_FROM_BROWSER',
+    ):
         monkeypatch.delenv(key, raising=False)
     # Restore PATH and desktop variables after configuration mutates them.
     monkeypatch.setenv('PATH', '/usr/bin:/bin')
@@ -68,6 +73,12 @@ def test_environment_overrides_saved_locations(support, monkeypatch):
     locations = desktop.configure_environment(support)
     assert locations['DATABASE_DIR'] == str(support / 'override')
     assert locations['DOWNLOAD_DIR'] == str(support / 'saved music')
+
+
+def test_desktop_always_uses_chrome_cookies(support, monkeypatch):
+    monkeypatch.setenv('DOWNTIFY_COOKIES_FROM_BROWSER', 'firefox')
+    desktop.configure_environment(support)
+    assert desktop.os.environ['DOWNTIFY_COOKIES_FROM_BROWSER'] == 'chrome'
 
 
 def test_backend_serves_ui_and_api_and_stops(support, monkeypatch):

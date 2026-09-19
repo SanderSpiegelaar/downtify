@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent
 
 
 def configure_environment(support: Path) -> dict[str, str]:
+    os.environ['DOWNTIFY_COOKIES_FROM_BROWSER'] = 'chrome'
     config = support / 'desktop.json'
     locations = {
         'DOWNLOAD_DIR': str(Path.home() / 'Music/Downtify'),
