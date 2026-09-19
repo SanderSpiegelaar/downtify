@@ -53,3 +53,32 @@ jobs:
           path: dist/Downtify-windows.zip
           if-no-files-found: error
           retention-days: 14
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile build/MicrosoftEdgeWebview2Setup.exe
+          $signature = Get-AuthenticodeSignature build/MicrosoftEdgeWebview2Setup.exe
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+            throw 'WebView2 bootstrapper signature verification failed'
+          }
+          $version = uv run --frozen --no-dev python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])"
+          & "${env:ProgramFiles(x86)}/Inno Setup 6/ISCC.exe" "/DAppVersion=$version" scripts/windows-installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test installation and uninstallation
+        shell: pwsh
+        run: |
+          $install = Start-Process dist/Downtify-Setup.exe -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS=desktopicon /LOG=build/install.log' -Wait -PassThru
+          if ($install.ExitCode -ne 0) { Get-Content build/install.log; throw "Installer exited $($install.ExitCode)" }
+          $app = "$env:ProgramFiles/Downtify"
+          if (-not (Test-Path "$app/Downtify.exe")) { throw 'Installed executable missing' }
+          if (-not (Test-Path "$env:ProgramData/Microsoft/Windows/Start Menu/Programs/Downtify.lnk")) { throw 'Start menu shortcut missing' }
+          if (-not (Test-Path "$env:PUBLIC/Desktop/Downtify.lnk")) { throw 'Desktop shortcut missing' }
+          $uninstall = Start-Process "$app/unins000.exe" -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0 -or (Test-Path "$app/Downtify.exe")) { throw 'Uninstall failed' }
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: Downtify-Setup-windows-x64
+          path: dist/Downtify-Setup.exe
+          if-no-files-found: error
+          retention-days: 14

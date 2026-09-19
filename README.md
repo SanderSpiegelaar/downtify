@@ -118,7 +118,14 @@ Run desktop checks with `uv run --extra desktop pytest tests/test_desktop.py`.
 Without a Windows machine, use **Actions → Windows desktop → Run workflow**
 on a GitHub repository containing this workflow. GitHub builds on a Windows
 runner and provides the `Downtify-windows-x64` download under the run's
-artifacts. The workflow is manual and does not publish a release.
+artifacts. For a normal installation, download the **Downtify-Setup-windows-x64**
+artifact and run `Downtify-Setup.exe`. It installs into Program Files, adds a
+Start menu entry and an optional desktop shortcut, and registers an uninstaller
+in Windows Settings. Administrator permission is required. If WebView2 is
+missing, setup installs it from Microsoft (internet access required).
+Uninstalling preserves your music, databases and desktop preferences.
+The installer is currently unsigned. The workflow is manual and does not
+publish a release; it checks installation and uninstallation on Windows.
 
 Build on Windows with Python 3.13, uv, Node.js, FFmpeg (`ffmpeg.exe` and
 `ffprobe.exe`) and Deno installed and available on `PATH`:
